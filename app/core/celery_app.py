@@ -1,15 +1,14 @@
 from celery import Celery
-import os
-
-# URL de Redis (broker)
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+from app.core.config import settings
 
 celery_app = Celery(
     "scraper",
-    broker=REDIS_URL,
-    backend=REDIS_URL
+    broker=settings.REDIS_URL,
+    backend=settings.REDIS_URL,
+    include=["app.tasks.scraper"],  # asegura que Celery encuentre las tareas
 )
 
+# Configuración adicional
 celery_app.conf.update(
     task_routes={
         "app.tasks.scraper.*": {"queue": "scraper"},
@@ -20,3 +19,6 @@ celery_app.conf.update(
     timezone="UTC",
     enable_utc=True,
 )
+
+if __name__ == "__main__":
+    celery_app.start()
