@@ -1,36 +1,35 @@
 from app.core.celery_app import celery_app
 from app.db.session import AsyncSessionLocal
-from app.models.store import Store
-import random
+from app.models.product import Product
+from app.scrapers.scraper_001 import scrape_store_001
 import asyncio
-from sqlalchemy.future import select
 
-@celery_app.task(bind=True, name="app.tasks.scraper.simulate_scraping")
-def simulate_scraping(self, product_name: str):
-    """
-    Tarea que obtiene las tiendas desde la base de datos y simula scraping de precios.
-    """
-
+@celery_app.task(bind=True, name="app.tasks.scraper.real_scraping")
+def real_scraping(self, product_name: str):
     async def run_scraping():
-        async with AsyncSessionLocal() as session:
-            # Usa select(Store) para obtener objetos del ORM
-            result = await session.execute(select(Store))
-            stores = result.scalars().all()
-
+        scrapers = [scrape_store_001]  # luego agregamos mas tiendas
         results = []
-        total = len(stores)
-        for i, store in enumerate(stores, start=1):
-            # Simula latencia y precio
-            await asyncio.sleep(1)
-            results.append({
-                "store": store.name,
-                "product": product_name,
-                "price": round(random.uniform(100, 1000), 2)
-            })
-            # Actualiza estado de progreso
-            self.update_state(state="PROGRESS", meta={"progress": f"{i}/{total}"})
-        
+
+        async with AsyncSessionLocal() as session:
+            total = len(scrapers)
+            for i, scraper in enumerate(scrapers, start=1):
+                try:
+                    data = await scraper(product_name)
+                    results.extend(data)
+                    # Guardar productos en DB
+                    for item in data:
+                        product = Product(
+                            name=item["name"],
+                            price=item["price"],
+                            url=item["url"],
+                            store_id=item["store_id"]
+                        )
+                        session.add(product)
+                    await session.commit()
+                    self.update_state(state="PROGRESS", meta={"progress": f"{i}/{total}"})
+                except Exception as e:
+                    print(f"Error en {scraper.__name__}: {e}")
+
         return results
 
-    # Ejecuta la corrutina
     return asyncio.run(run_scraping())

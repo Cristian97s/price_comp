@@ -1,6 +1,6 @@
 import asyncio
 from app.db.session import engine, Base
-from app.models import product, store  # 👈 importa tus modelos
+from app.models import product, store
 
 async def init_models():
     async with engine.begin() as conn:
