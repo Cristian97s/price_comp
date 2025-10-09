@@ -1,12 +1,14 @@
 from playwright.async_api import async_playwright
 from app.models.store import Store
+from sqlalchemy.future import select
 
 async def scrape_store_001(product_name: str, db):
     """
-    Scrapea productos desde La primera tienda usando Playwright.
+    Obteniendo productos desde La primera tienda usando Playwright.
     Devuelve una lista de dicts con: name, price, url, store
     """
-    store = db.query(Store).filter(Store.id == 1).first()
+    result = await db.execute(select(Store).filter(Store.id == 1))
+    store = result.scalars().first()
     if not store:
         raise ValueError("No se encontró la tienda con id 1")
 

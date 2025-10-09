@@ -14,7 +14,7 @@ def real_scraping(self, product_name: str):
             total = len(scrapers)
             for i, scraper in enumerate(scrapers, start=1):
                 try:
-                    data = await scraper(product_name)
+                    data = await scraper(product_name, session)
                     results.extend(data)
                     # Guardar productos en DB
                     for item in data:
